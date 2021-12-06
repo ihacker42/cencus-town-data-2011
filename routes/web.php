@@ -15,7 +15,10 @@ Route::get('/', function () {
     return view('welcome');
 });
 
+Route::get("/cencus-data", "CencusController@index");
+
 Route::get("/import", "ImportController@importFile");
+Route::get("/import-1", "ImportController@importCensusFile");
 
 Route::get("/test", "IndexController@hello");
 Route::get("/check", "IndexController@insertData");
