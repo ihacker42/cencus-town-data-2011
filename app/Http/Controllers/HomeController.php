@@ -24,7 +24,7 @@ class HomeController extends Controller
      * @return \Illuminate\Contracts\Support\Renderable
      */
     public function index() {
-        return view('home');
+        // return view('home');
     }
 
     public function insertLocations() {
@@ -35,34 +35,36 @@ class HomeController extends Controller
         $dist_id    =   0;
         $tehsil_id  =   0;
         foreach($locations as $location) {
+            $name   =   ltrim($location->name);
+            $name   =   rtrim($name);
             if($location->level == "STATE") {
-                $slug   =   Str::slug($location->name);
-                $count  =   DB::table("states")->where("slug",$slug)->count();
+                $slug   =   Str::slug($name);
+                $count  =   DB::table("states")->where("name",$name)->count();
                 if($count)
                     $slug   =   "$slug-$count";
                 $state_id   =   DB::table("states")->insertGetId([
-                    "name"  =>  $location->name,
+                    "name"  =>  $name,
                     "slug"  =>  $slug,
                 ]);
                 $i++;
             } else if($location->level == "DISTRICT") {
-                $slug   =   Str::slug($location->name);
-                $count  =   DB::table("districts")->where("slug",$slug)->count();
+                $slug   =   Str::slug($name);
+                $count  =   DB::table("districts")->where("name",$name)->count();
                 if($count)
                     $slug   =   "$slug-$count";
                 $dist_id   =   DB::table("districts")->insertGetId([
-                    "name"      =>  $location->name,
+                    "name"      =>  $name,
                     "slug"      =>  $slug,
                     "state_id"  =>  $state_id,
                 ]);
                 $i++;
             } else if($location->level == "TOWN") {
-                $slug   =   Str::slug($location->name);
-                $count  =   DB::table("tehsils")->where("slug",$slug)->count();
+                $slug   =   Str::slug($name);
+                $count  =   DB::table("tehsils")->where("name",$name)->count();
                 if($count)
                     $slug   =   "$slug-$count";
                 $tehsil_id   =   DB::table("tehsils")->insertGetId([
-                    "name"          =>  $location->name,
+                    "name"          =>  $name,
                     "slug"          =>  $slug,
                     "district_id"   =>  $dist_id,
                     "state_id"      =>  $state_id,
@@ -110,7 +112,7 @@ class HomeController extends Controller
             $state_id       =   DB::table("states")->where("old_id",$old_state_id)->first()->id;
 
             $slug   =   Str::slug($dist->name);
-            $count  =   DB::table("districts")->where("slug",$slug)->count();
+            $count  =   DB::table("districts")->where("name",$dist->name)->count();
             if($count)
                 $slug   =   "$slug-$count";
             $dist_id   =   DB::table("districts")->insertGetId([
@@ -124,5 +126,47 @@ class HomeController extends Controller
         }
 
         return $old_districts;
+    }
+    
+    public function tehsilsDataCheck() {
+        $tehsils  =   DB::table("tehsils")->where("status",0)->get();
+
+        foreach($tehsils as $tehsil) {
+            $check  =   DB::table("tehsils_bak")->where("status",0)->where("name","like",$tehsil->name)->first();
+            if($check) {
+                DB::table("tehsils_bak")->where("id",$check->id)->update(["status" => 1]);
+                DB::table("tehsils")->where("id",$tehsil->id)->update(["old_id" => $check->id,"status" => 1]);
+            }
+        }
+
+        return $tehsils;
+    }
+
+    public function addNewTehsils() {
+        $old_tehsils  =   DB::table("tehsils_bak")->where("status",0)->get();
+        
+        foreach($old_tehsils as $tehsil) {
+            $old_state_id   =   DB::table("states_bak")->where("id",$tehsil->state_id)->first()->id;
+            $state_id       =   DB::table("states")->where("old_id",$old_state_id)->first()->id;
+
+            $old_district_id   =   DB::table("districts_bak")->where("id",$tehsil->dist_id)->first()->id;
+            $district_id       =   DB::table("districts")->where("old_id",$old_district_id)->first()->id;
+
+            $slug   =   Str::slug($tehsil->name);
+            $count  =   DB::table("tehsils")->where("name",$tehsil->name)->count();
+            if($count)
+                $slug   =   "$slug-$count";
+            $tehsil_id   =   DB::table("tehsils")->insertGetId([
+                "name"          =>  $tehsil->name,
+                "slug"          =>  $slug,
+                "district_id"   =>  $district_id,
+                "state_id"      =>  $state_id,
+                "old_id"        =>  $tehsil->id,
+                "status"        =>  1,
+            ]);
+            DB::table("tehsils_bak")->where("id",$tehsil->id)->update(["status" => 1]);
+        }
+
+        return $old_tehsils;
     }
 }

@@ -25,4 +25,4 @@ Route::get("/check", "IndexController@insertData");
 
 Auth::routes();
 
-Route::get('/home', 'HomeController@index')->name('home');
+Route::get('/location', 'HomeController@index')->name('home');
