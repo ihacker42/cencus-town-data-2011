@@ -14,7 +14,7 @@ class CencusController extends Controller
     }
 
     public function index() {
-        $this->districtsDataCheck();
+        $this->tehsilsDataCheck();
 
         return response()->json([]);
     }
@@ -117,13 +117,8 @@ class CencusController extends Controller
             $old_state_id   =   DB::table("census_states_bak")->where("id",$dist->state_id)->first()->id;
             $state_id       =   DB::table("census_states")->where("old_id",$old_state_id)->first()->id;
 
-            $slug   =   Str::slug($dist->name);
-            $count  =   DB::table("census_districts")->where("name",$dist->name)->count();
-            if($count)
-                $slug   =   "$slug-$count";
             $dist_id   =   DB::table("census_districts")->insertGetId([
                 "name"      =>  $dist->name,
-                "slug"      =>  $slug,
                 "state_id"  =>  $state_id,
                 "old_id"    =>  $dist->id,
                 "status"    =>  1,
@@ -182,13 +177,8 @@ class CencusController extends Controller
             $old_district_id   =   DB::table("census_districts_bak")->where("id",$tehsil->dist_id)->first()->id;
             $district_id       =   DB::table("census_districts")->where("old_id",$old_district_id)->first()->id;
 
-            $slug   =   Str::slug($tehsil->name);
-            $count  =   DB::table("census_tehsils")->where("name",$tehsil->name)->count();
-            if($count)
-                $slug   =   "$slug-$count";
             $tehsil_id   =   DB::table("census_tehsils")->insertGetId([
                 "name"          =>  $tehsil->name,
-                "slug"          =>  $slug,
                 "district_id"   =>  $district_id,
                 "state_id"      =>  $state_id,
                 "old_id"        =>  $tehsil->id,
