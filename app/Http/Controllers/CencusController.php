@@ -14,7 +14,7 @@ class CencusController extends Controller
     }
 
     public function index() {
-        $this->insertVillages();
+        $this->districtsDataCheck();
 
         return response()->json([]);
     }
@@ -39,7 +39,7 @@ class CencusController extends Controller
         $states =   CensusData::where("state_code","!=",0)->where("district_code",0)->where("tehsil_code",0)->where("village_code",0)->where("status",0)->where("is_deleted",0)->get();
         
         foreach($states as $row) {
-            DB::table("cencus_states")->insertGetId([
+            DB::table("census_states")->insertGetId([
                 "name"      =>  $row->name,
                 "census_id" =>  $row->state_code,
             ]);
@@ -48,24 +48,39 @@ class CencusController extends Controller
     }
 
     public function statesDataCheck() {
-        $states  =   DB::table("states")->where("status",0)->get();
+        $states  =   DB::table("census_states")->where("status",0)->get();
 
         foreach($states as $state) {
-            $check  =   DB::table("states_bak")->where("status",0)->where("name","like",$state->name)->first();
+            $check  =   DB::table("census_states_bak")->where("status",0)->where("name","like",$state->name)->first();
             if($check) {
-                DB::table("states_bak")->where("id",$check->id)->update(["status" => 1]);
-                DB::table("states")->where("id",$state->id)->update(["old_id" => $check->id,"status" => 1]);
+                DB::table("census_states_bak")->where("id",$check->id)->update(["status" => 1]);
+                DB::table("census_states")->where("id",$state->id)->update(["old_id" => $check->id,"status" => 1]);
             }
         }
 
         return $states;
     }
 
+    public function addNewStates() {
+        $old_states  =   DB::table("census_states_bak")->where("status",0)->get();
+        
+        foreach($old_states as $state) {
+            $state_id   =   DB::table("census_states")->insertGetId([
+                "name"      =>  $state->name,
+                "old_id"    =>  $state->id,
+                "status"    =>  1,
+            ]);
+            DB::table("census_states_bak")->where("id",$state->id)->update(["status" => 1]);
+        }
+
+        return $old_states;
+    }
+
     public function insertDistricts() {
         $districts =   CensusData::where("state_code","!=",0)->where("district_code","!=",0)->where("tehsil_code",0)->where("village_code",0)->where("status",0)->where("is_deleted",0)->get();
         
         foreach($districts as $row) {
-            DB::table("cencus_districts")->insertGetId([
+            DB::table("census_districts")->insertGetId([
                 "name"      =>  $row->name,
                 "state_id"  =>  $row->state_code,
                 "census_id" =>  $row->district_code,
@@ -75,13 +90,20 @@ class CencusController extends Controller
     }
 
     public function districtsDataCheck() {
-        $districts  =   DB::table("districts")->where("status",0)->get();
+        $districts  =   DB::table("census_districts")->where("status",0)->get();
 
         foreach($districts as $dist) {
-            $check  =   DB::table("districts_bak")->where("status",0)->where("name","like",$dist->name)->first();
-            if($check) {
-                DB::table("districts_bak")->where("id",$check->id)->update(["status" => 1]);
-                DB::table("districts")->where("id",$dist->id)->update(["old_id" => $check->id,"status" => 1]);
+            $old_districts  =   DB::table("census_districts_bak")->where("status",0)->where("name","like",$dist->name)->get();
+            foreach($old_districts as $check) {
+                if($check) {
+                    $old_state_id   =   DB::table("census_states_bak")->where("id",$check->state_id)->pluck("id")->first();
+                    $state_id       =   DB::table("census_states")->where("old_id",$old_state_id)->pluck("id")->first();
+                    
+                    if($dist->state_id == $state_id) {
+                        DB::table("census_districts_bak")->where("id",$check->id)->update(["status" => 1]);
+                        DB::table("census_districts")->where("id",$dist->id)->update(["old_id" => $check->id,"status" => 1]);
+                    }
+                }
             }
         }
 
@@ -89,24 +111,24 @@ class CencusController extends Controller
     }
 
     public function addNewDistricts() {
-        $old_districts  =   DB::table("districts_bak")->where("status",0)->get();
+        $old_districts  =   DB::table("census_districts_bak")->where("status",0)->get();
         
         foreach($old_districts as $dist) {
-            $old_state_id   =   DB::table("states_bak")->where("id",$dist->state_id)->first()->id;
-            $state_id       =   DB::table("states")->where("old_id",$old_state_id)->first()->id;
+            $old_state_id   =   DB::table("census_states_bak")->where("id",$dist->state_id)->first()->id;
+            $state_id       =   DB::table("census_states")->where("old_id",$old_state_id)->first()->id;
 
             $slug   =   Str::slug($dist->name);
-            $count  =   DB::table("districts")->where("name",$dist->name)->count();
+            $count  =   DB::table("census_districts")->where("name",$dist->name)->count();
             if($count)
                 $slug   =   "$slug-$count";
-            $dist_id   =   DB::table("districts")->insertGetId([
+            $dist_id   =   DB::table("census_districts")->insertGetId([
                 "name"      =>  $dist->name,
                 "slug"      =>  $slug,
                 "state_id"  =>  $state_id,
                 "old_id"    =>  $dist->id,
                 "status"    =>  1,
             ]);
-            DB::table("districts_bak")->where("id",$dist->id)->update(["status" => 1]);
+            DB::table("census_districts_bak")->where("id",$dist->id)->update(["status" => 1]);
         }
 
         return $old_districts;
@@ -116,7 +138,7 @@ class CencusController extends Controller
         $tehsils =   CensusData::where("state_code","!=",0)->where("district_code","!=",0)->where("tehsil_code","!=",0)->where("village_code",0)->where("status",0)->where("is_deleted",0)->get();
         
         foreach($tehsils as $row) {
-            DB::table("cencus_tehsils")->insertGetId([
+            DB::table("census_tehsils")->insertGetId([
                 "name"          =>  $row->name,
                 "state_id"      =>  $row->state_code,
                 "district_id"   =>  $row->district_code,
@@ -127,21 +149,21 @@ class CencusController extends Controller
     }
 
     public function tehsilsDataCheck() {
-        $tehsils  =   DB::table("tehsils")->where("status",0)->get();
+        $tehsils  =   DB::table("census_tehsils")->where("status",0)->get();
 
         foreach($tehsils as $tehsil) {
-            $old_tehsils  =   DB::table("tehsils_bak")->where("status",0)->where("name","like",$tehsil->name)->get();
+            $old_tehsils  =   DB::table("census_tehsils_bak")->where("status",0)->where("name","like",$tehsil->name)->get();
             foreach($old_tehsils as $check) {
                 if($check) {
-                    $old_state_id   =   DB::table("states_bak")->where("id",$check->state_id)->pluck("id")->first();
-                    $state_id       =   DB::table("states")->where("old_id",$old_state_id)->pluck("id")->first();
+                    $old_state_id   =   DB::table("census_states_bak")->where("id",$check->state_id)->pluck("id")->first();
+                    $state_id       =   DB::table("census_states")->where("old_id",$old_state_id)->pluck("id")->first();
 
-                    $old_district_id   =   DB::table("districts_bak")->where("id",$check->dist_id)->pluck("id")->first();
-                    $district_id       =   DB::table("districts")->where("old_id",$old_district_id)->pluck("id")->first();
+                    $old_district_id   =   DB::table("census_districts_bak")->where("id",$check->dist_id)->pluck("id")->first();
+                    $district_id       =   DB::table("census_districts")->where("old_id",$old_district_id)->pluck("id")->first();
                     
                     if($tehsil->state_id == $state_id && $tehsil->district_id == $district_id) {
-                        DB::table("tehsils_bak")->where("id",$check->id)->update(["status" => 1]);
-                        DB::table("tehsils")->where("id",$tehsil->id)->update(["old_id" => $check->id,"status" => 1]);
+                        DB::table("census_tehsils_bak")->where("id",$check->id)->update(["status" => 1]);
+                        DB::table("census_tehsils")->where("id",$tehsil->id)->update(["old_id" => $check->id,"status" => 1]);
                     }
                 }
             }
@@ -151,20 +173,20 @@ class CencusController extends Controller
     }
 
     public function addNewTehsils() {
-        $old_tehsils  =   DB::table("tehsils_bak")->where("status",0)->get();
+        $old_tehsils  =   DB::table("census_tehsils_bak")->where("status",0)->get();
         
         foreach($old_tehsils as $tehsil) {
-            $old_state_id   =   DB::table("states_bak")->where("id",$tehsil->state_id)->first()->id;
-            $state_id       =   DB::table("states")->where("old_id",$old_state_id)->first()->id;
+            $old_state_id   =   DB::table("census_states_bak")->where("id",$tehsil->state_id)->first()->id;
+            $state_id       =   DB::table("census_states")->where("old_id",$old_state_id)->first()->id;
 
-            $old_district_id   =   DB::table("districts_bak")->where("id",$tehsil->dist_id)->first()->id;
-            $district_id       =   DB::table("districts")->where("old_id",$old_district_id)->first()->id;
+            $old_district_id   =   DB::table("census_districts_bak")->where("id",$tehsil->dist_id)->first()->id;
+            $district_id       =   DB::table("census_districts")->where("old_id",$old_district_id)->first()->id;
 
             $slug   =   Str::slug($tehsil->name);
-            $count  =   DB::table("tehsils")->where("name",$tehsil->name)->count();
+            $count  =   DB::table("census_tehsils")->where("name",$tehsil->name)->count();
             if($count)
                 $slug   =   "$slug-$count";
-            $tehsil_id   =   DB::table("tehsils")->insertGetId([
+            $tehsil_id   =   DB::table("census_tehsils")->insertGetId([
                 "name"          =>  $tehsil->name,
                 "slug"          =>  $slug,
                 "district_id"   =>  $district_id,
@@ -172,17 +194,17 @@ class CencusController extends Controller
                 "old_id"        =>  $tehsil->id,
                 "status"        =>  1,
             ]);
-            DB::table("tehsils_bak")->where("id",$tehsil->id)->update(["status" => 1]);
+            DB::table("census_tehsils_bak")->where("id",$tehsil->id)->update(["status" => 1]);
         }
 
         return $old_tehsils;
     }
 
     public function insertVillages() {
-        $villages =   CensusData::where("state_code","!=",0)->where("district_code","!=",0)->where("tehsil_code","!=",0)->where("village_code","!=",0)->where("status",0)->where("is_deleted",0)->take(100000)->get();
+        $villages =   CensusData::where("state_code","!=",0)->where("district_code","!=",0)->where("tehsil_code","!=",0)->where("village_code","!=",0)->where("status",0)->where("is_deleted",0)->take(200000)->get();
         
         foreach($villages as $row) {
-            DB::table("cencus_villages")->insertGetId([
+            DB::table("census_villages")->insertGetId([
                 "name"          =>  $row->name,
                 "state_id"      =>  $row->state_code,
                 "district_id"   =>  $row->district_code,
