@@ -24,7 +24,7 @@ class HomeController extends Controller
      * @return \Illuminate\Contracts\Support\Renderable
      */
     public function index() {
-        // return view('home');
+        return view('home');
     }
 
     public function insertLocations() {
@@ -71,6 +71,7 @@ class HomeController extends Controller
                 ]);
                 $i++;
             }
+            DB::table("locations")->where("id",$location->id)->update(["status" => 1]);
         }
 
         return $i;
@@ -132,10 +133,20 @@ class HomeController extends Controller
         $tehsils  =   DB::table("tehsils")->where("status",0)->get();
 
         foreach($tehsils as $tehsil) {
-            $check  =   DB::table("tehsils_bak")->where("status",0)->where("name","like",$tehsil->name)->first();
-            if($check) {
-                DB::table("tehsils_bak")->where("id",$check->id)->update(["status" => 1]);
-                DB::table("tehsils")->where("id",$tehsil->id)->update(["old_id" => $check->id,"status" => 1]);
+            $old_tehsils  =   DB::table("tehsils_bak")->where("status",0)->where("name","like",$tehsil->name)->get();
+            foreach($old_tehsils as $check) {
+                if($check) {
+                    $old_state_id   =   DB::table("states_bak")->where("id",$check->state_id)->pluck("id")->first();
+                    $state_id       =   DB::table("states")->where("old_id",$old_state_id)->pluck("id")->first();
+
+                    $old_district_id   =   DB::table("districts_bak")->where("id",$check->dist_id)->pluck("id")->first();
+                    $district_id       =   DB::table("districts")->where("old_id",$old_district_id)->pluck("id")->first();
+                    
+                    if($tehsil->state_id == $state_id && $tehsil->district_id == $district_id) {
+                        DB::table("tehsils_bak")->where("id",$check->id)->update(["status" => 1]);
+                        DB::table("tehsils")->where("id",$tehsil->id)->update(["old_id" => $check->id,"status" => 1]);
+                    }
+                }
             }
         }
 
