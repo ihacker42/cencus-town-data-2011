@@ -14,8 +14,6 @@ class CencusController extends Controller
     }
 
     public function index() {
-        $this->tehsilsDataCheck();
-
         return response()->json([]);
     }
 
@@ -203,5 +201,31 @@ class CencusController extends Controller
             ]);
             CensusData::where("id",$row->id)->update(["status" => 1]);
         }
+    }
+
+    public function updateVillageData() {
+        $villages   =   DB::table("census_villages")->select("id","tehsil_id","district_id","state_id")->where("status",0)->take(250000)->get();
+        foreach($villages as $village) {
+            $new_tehsil_id   =   DB::table("census_tehsils")->where("id",$village->tehsil_id)->pluck("old_id")->first();
+            if($new_tehsil_id == 0)
+                continue;
+            
+            $tehsil_id       =   DB::table("census_tehsils_bak")->where("id",$new_tehsil_id)->pluck("id")->first();
+            
+            $new_state_id   =   DB::table("census_states")->where("id",$village->state_id)->pluck("old_id")->first();
+            $state_id       =   DB::table("census_states_bak")->where("id",$new_state_id)->pluck("id")->first();
+
+            $new_district_id   =   DB::table("census_districts")->where("id",$village->district_id)->pluck("old_id")->first();
+            $district_id       =   DB::table("census_districts_bak")->where("id",$new_district_id)->pluck("id")->first();
+
+            DB::table("census_villages")->where("id",$village->id)->where("status",0)->update([
+                "old_state_id"      =>  $state_id,
+                "old_district_id"   =>  $district_id,
+                "old_tehsil_id"     =>  $tehsil_id,
+                "status"            =>  1,
+            ]);
+        }
+
+        return $villages;
     }
 }
