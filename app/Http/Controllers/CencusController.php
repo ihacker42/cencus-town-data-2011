@@ -14,7 +14,7 @@ class CencusController extends Controller
 	}
 
 	public function index() {
-		$this->updateVillageSlug();
+		// $this->updateVillageSlug();
 		return response()->json([]);
 	}
 
