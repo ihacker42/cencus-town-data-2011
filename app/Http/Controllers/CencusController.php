@@ -278,7 +278,7 @@ class CencusController extends Controller
 		foreach($villages as $row) {
 			$slug	=	Str::slug($row->name);
 			
-			$count	=	DB::table("census_villages")->where("id","<",$row->id)->where("name",$row->name)->count();
+			$count	=	DB::table("census_villages")->whereNotNull("slug")->where("id","<",$row->id)->where("name",$row->name)->count();
 			if($count)
 				$slug	=	"$slug-$count";
 			
